@@ -4,6 +4,7 @@ import { ImageGallery } from './imageGallery/ImageGallery';
 import { Loader } from './loader/Loader';
 import { getImages } from '../api';
 import { Button } from './button/Button';
+import { nanoid } from 'nanoid';
 
 export class App extends Component {
   state = {
@@ -12,34 +13,38 @@ export class App extends Component {
     page: 1,
     isLoading: false,
     loadedImgCount: 0,
-    // showLoadMoreButton: false,
-  };
-
-  handleSubmit = query => {
-    console.log(query);
+    randomId: 0,
   };
 
   handleQueryChange = newQuery => {
-    console.log(newQuery);
-  this.setState({
-    query: `${Date.now()}/${newQuery}`,
-    images: [],
-    page: 1,
-  });
-};
-
+    this.setState(prevState => ({
+      query: newQuery,
+      images: [],
+      page: 1,
+      randomId: nanoid(),
+    })
+    );
+  }
+  
   async componentDidUpdate(prevProps, prevState) {
+    const newQuery = this.state.query;
     if (
       prevState.query !== this.state.query ||
-      prevState.page !== this.state.page
-    ) { 
-      let index = this.state.query.indexOf('/');
-      let result = this.state.query.slice(index + 1);
+      prevState.page !== this.state.page ||
+      prevState.randomId !== this.state.randomId
+    ) {
+      const result = newQuery.slice(newQuery.indexOf('/') + 1);
+      
       this.setState({ isLoading: true });
+
       try {
         const data = await getImages(result, this.state.page);
-        this.setState({ images: data.hits });
-        this.setState({ loadedImgCount: data.totalHits -12 });
+        
+        this.setState(prevState => ({
+          images: [...prevState.images, ...data.hits],
+          loading: false,
+          loadedImgCount: Math.ceil(data.totalHits / 12),
+        }));
       } catch (error) {
         console.error("Помилка при отриманні даних:", error);
       } finally {
@@ -52,6 +57,7 @@ export class App extends Component {
   };
 
   render() {
+
     return (
       <div>
         <div>
@@ -61,7 +67,7 @@ export class App extends Component {
           <ImageGallery images={this.state.images } />
         </div>
         <div>
-          {this.state.loadedImgCount > 0 && <Button onHandleLoadMore={this.handleLoadMore} />}
+          {this.state.loadedImgCount > 0 && this.state.loadedImgCount !== this.state.page && <Button onHandleLoadMore={this.handleLoadMore} />}
         </div>
         <div>
           {this.state.isLoading && <Loader />}
